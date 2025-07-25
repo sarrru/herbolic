@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import tajaLogo from '../assets/image.png';
+import tajaLogo from '../assets/herbolic.png';
 import Search from './Search';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaRegCircleUser } from "react-icons/fa6";
@@ -49,8 +49,8 @@ const Header = () => {
               {/* Logo */}
               <div className="h-full">
                 <Link to="/" className="h-full flex justify-center items-center">
-                  <img src={tajaLogo} alt="Herbolic Logo" className="hidden lg:block h-[90px] w-auto" />
-                  <img src={tajaLogo} alt="Herbolic Logo" className="lg:hidden h-[84px] w-auto" />
+                  <img src={tajaLogo} alt="Herbolic Logo" className="hidden lg:block h-[120px] w-auto" />
+                  <img src={tajaLogo} alt="Herbolic Logo" className="lg:hidden h-[110px] w-auto" />
 
 
                 </Link>

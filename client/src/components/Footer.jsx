@@ -8,11 +8,7 @@ import {
   FaPhone
 } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import logo from '../assets/taja.png';
-import footerImg1 from '../assets/footer.jpg';
-import footerImg2 from '../assets/footer1.jpg';
-import footerImg3 from '../assets/footer2.jpg';
-import footerImg4 from '../assets/footer3.jpg';
+import logo from '../assets/herbolic.png';
 
 const Footer = () => {
   return (
@@ -20,8 +16,10 @@ const Footer = () => {
       {/* Top Footer Section */}
       <div className="container mx-auto grid md:grid-cols-4 gap-8">
         {/* Brand Info */}
-        <div>
-          <img src={logo} alt="TAJA logo" className="w-20 mb-3" />
+        <div className="flex flex-col justify-start pt-1">
+          <div className="mb-3">
+            <img src={logo} alt="TAJA logo" className="w-32" />
+          </div>
           <p className="text-sm mb-4 leading-relaxed">
             Taja delivers fresh, organic products to your door. Eat healthy, live naturally.
           </p>
@@ -60,23 +58,13 @@ const Footer = () => {
           </ul>
         </div>
 
-        {/* Help / Gallery */}
+        {/* Help (Image gallery removed) */}
         <div>
           <h4 className="font-semibold mb-3 text-gray-900">Help</h4>
           <ul className="space-y-2 text-sm">
             <li>FAQs</li>
             <li>Delivery Info</li>
           </ul>
-          <div className="flex flex-wrap gap-2 mt-4">
-            {[footerImg1, footerImg2, footerImg3, footerImg4].map((img, idx) => (
-              <img
-                key={idx}
-                src={img}
-                alt={`footer-img-${idx}`}
-                className="w-12 h-12 object-cover rounded"
-              />
-            ))}
-          </div>
         </div>
       </div>
 

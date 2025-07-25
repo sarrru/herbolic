@@ -49,7 +49,7 @@ const sendEmail = async ({ sendTo, subject, html }) => {
         console.log("-----------------------------------------");
 
         const { data, error } = await resend.emails.send({
-            from: 'Taja Support <onboarding@resend.dev>',
+            from: 'Herbolic Support <onboarding@resend.dev>',
             to: sendTo, // ✅ This line was missing!
             subject: subject,
             html: html,

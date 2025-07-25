@@ -18,19 +18,17 @@ const CheckoutPage = () => {
     fetchCartItem,
     fetchOrder,
   } = useGlobalContext();
+
   const [openAddress, setOpenAddress] = useState(false);
+  const [selectAddress, setSelectAddress] = useState(0);
   const addressList = useSelector((state) => state.addresses.addressList);
   const cartItemsList = useSelector((state) => state.cartItem.cart);
-  const [selectAddress, setSelectAddress] = useState(0);
   const navigate = useNavigate();
 
   const selectedAddress = addressList?.[selectAddress];
 
   const handleCashOnDelivery = async () => {
-    if (!selectedAddress) {
-      toast.error('Please select a valid address');
-      return;
-    }
+    if (!selectedAddress) return toast.error('Please select a valid address');
 
     try {
       const response = await Axios({
@@ -43,17 +41,13 @@ const CheckoutPage = () => {
         },
       });
 
-      const { data: responseData } = response;
+      const responseData = response?.data;
 
       if (responseData.success) {
         toast.success(responseData.message);
         fetchCartItem?.();
         fetchOrder?.();
-        navigate('/success', {
-          state: {
-            text: 'Order',
-          },
-        });
+        navigate('/success', { state: { text: 'Order' } });
       }
     } catch (error) {
       AxiosToastError(error);
@@ -61,10 +55,7 @@ const CheckoutPage = () => {
   };
 
   const handleOnlinePayment = async () => {
-    if (!selectedAddress) {
-      toast.error('Please select a valid address');
-      return;
-    }
+    if (!selectedAddress) return toast.error('Please select a valid address');
 
     try {
       toast.loading('Loading...');
@@ -93,49 +84,52 @@ const CheckoutPage = () => {
   };
 
   return (
-    <section className="bg-blue-50 min-h-screen">
-      <div className="container mx-auto p-4 flex flex-col lg:flex-row w-full gap-5 justify-between">
-        <div className="w-full">
-          {/* Address Section */}
-          <h3 className="text-lg font-semibold mb-2">Choose your address</h3>
-          <div className="bg-white p-2 grid gap-4">
+    <section className="bg-blue-50 min-h-screen font-medium text-gray-800">
+      <div className="container mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
+        {/* Address Section */}
+        <div className="w-full lg:w-2/3">
+          <h3 className="text-lg font-semibold mb-2">Choose Your Address</h3>
+          <div className="bg-white p-4 rounded shadow-sm space-y-4">
             {addressList?.length > 0 ? (
-              addressList.map((address, index) => (
-                <label
-                  key={index}
-                  htmlFor={'address' + index}
-                  className={!address.status ? 'hidden' : ''}
-                >
-                  <div className="border rounded p-3 flex gap-3 hover:bg-blue-50">
-                    <input
-                      id={'address' + index}
-                      type="radio"
-                      value={index}
-                      checked={selectAddress === index}
-                      onChange={(e) => setSelectAddress(Number(e.target.value))}
-                      name="address"
-                    />
-                    <div>
-                      <p>{address.address_line}</p>
-                      <p>{address.city}</p>
-                      <p>{address.state}</p>
-                      <p>
-                        {address.country} - {address.pincode}
-                      </p>
-                      <p>{address.mobile}</p>
+              addressList.map((address, index) =>
+                address.status ? (
+                  <label
+                    key={index}
+                    htmlFor={'address' + index}
+                    className="block"
+                  >
+                    <div className="border p-3 rounded flex items-start gap-3 hover:bg-blue-50 transition text-sm">
+                      <input
+                        id={'address' + index}
+                        type="radio"
+                        name="address"
+                        value={index}
+                        checked={selectAddress === index}
+                        onChange={(e) => setSelectAddress(Number(e.target.value))}
+                        className="mt-1"
+                      />
+                      <div className="space-y-0.5">
+                        <p>{address.address_line}</p>
+                        <p>{address.city}</p>
+                        <p>{address.state}</p>
+                        <p>
+                          {address.country} - {address.pincode}
+                        </p>
+                        <p>{address.mobile}</p>
+                      </div>
                     </div>
-                  </div>
-                </label>
-              ))
+                  </label>
+                ) : null
+              )
             ) : (
-              <p className="text-gray-600 text-sm">
+              <p className="text-sm text-gray-500">
                 No address found. Please add one below.
               </p>
             )}
 
             <div
               onClick={() => setOpenAddress(true)}
-              className="h-16 bg-blue-50 border-2 border-dashed flex justify-center items-center cursor-pointer text-green-700 font-semibold"
+              className="h-14 bg-blue-50 border-2 border-dashed flex justify-center items-center text-green-700 font-semibold cursor-pointer rounded"
             >
               + Add New Address
             </div>
@@ -143,12 +137,12 @@ const CheckoutPage = () => {
         </div>
 
         {/* Summary Section */}
-        <div className="w-full max-w-md bg-white py-4 px-4 shadow-sm rounded-md">
-          <h3 className="text-lg font-semibold mb-4">Summary</h3>
-          <div className="space-y-3">
+        <div className="w-full lg:w-1/3 bg-white p-5 rounded shadow-sm">
+          <h3 className="text-lg font-semibold mb-4">Order Summary</h3>
+          <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span>Items Total</span>
-              <span className="flex items-center gap-2">
+              <span className="flex gap-2 items-center">
                 <s className="text-gray-400">
                   {DisplayPriceInRupees(notDiscountTotalPrice)}
                 </s>
@@ -156,33 +150,32 @@ const CheckoutPage = () => {
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Quantity Total</span>
+              <span>Quantity</span>
               <span>{totalQty} item(s)</span>
             </div>
             <div className="flex justify-between">
-              <span>Delivery Charge</span>
-              <span className="text-green-600 font-medium">Free</span>
+              <span>Delivery</span>
+              <span className="text-green-600 font-semibold">Free</span>
             </div>
             <hr />
-            <div className="flex justify-between font-semibold text-lg">
+            <div className="flex justify-between font-semibold text-base">
               <span>Grand Total</span>
               <span>{DisplayPriceInRupees(totalPrice)}</span>
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3">
+          <div className="mt-6 grid gap-3">
             <button
-              className="py-2 px-4 bg-green-700 hover:bg-green-800 rounded text-white font-semibold"
               onClick={handleOnlinePayment}
               disabled={!selectedAddress}
+              className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold text-sm transition"
             >
               Pay Online
             </button>
-
             <button
-              className="py-2 px-4 border-2 border-green-600 font-semibold text-green-700 hover:bg-green-700 hover:text-white rounded"
               onClick={handleCashOnDelivery}
               disabled={!selectedAddress}
+              className="w-full py-2 border border-green-600 text-green-700 hover:bg-green-700 hover:text-white rounded font-semibold text-sm transition"
             >
               Cash on Delivery
             </button>
@@ -190,7 +183,6 @@ const CheckoutPage = () => {
         </div>
       </div>
 
-      {/* Add Address Modal */}
       {openAddress && <AddAddress close={() => setOpenAddress(false)} />}
     </section>
   );

@@ -8,6 +8,119 @@ import uploadImageClodinary from '../utils/uploadImageClodinary.js';
 import generatedOtp from '../utils/generatedOtp.js';
 import forgotPasswordTemplate from '../utils/forgotPasswordTemplate.js';
 import jwt from 'jsonwebtoken';
+import AuditModel from '../models/audit.model.js';
+import mfaOtpTemplate from '../utils/mfaOtpTemplate.js';
+
+export async function verifyMfaController(request, response) {
+    try {
+        const { email, otp } = request.body;
+
+        if (!email || !otp) {
+            return response.status(400).json({
+                message: "Email and OTP are required",
+                error: true,
+                success: false
+            });
+        }
+
+        const user = await UserModel.findOne({ email });
+
+        if (!user) {
+            return response.status(404).json({
+                message: "User not found",
+                error: true,
+                success: false
+            });
+        }
+
+        if (!user.mfa_otp || !user.mfa_otp_expiry) {
+            return response.status(400).json({
+                message: "OTP not requested or already verified",
+                error: true,
+                success: false
+            });
+        }
+
+        const isOtpExpired = new Date() > new Date(user.mfa_otp_expiry);
+        const isOtpValid = user.mfa_otp === otp;
+
+        if (isOtpExpired) {
+            return response.status(400).json({
+                message: "OTP has expired",
+                error: true,
+                success: false
+            });
+        }
+
+        if (!isOtpValid) {
+            return response.status(401).json({
+                message: "Invalid OTP",
+                error: true,
+                success: false
+            });
+        }
+
+        // Clear OTP fields after successful verification
+        user.mfa_otp = null;
+        user.mfa_otp_expiry = null;
+        await user.save();
+
+        // Generate tokens
+        const accessToken = await generatedAccessToken(user._id);
+        const refreshToken = await genertedRefreshToken(user._id);
+
+        // Save refresh token in DB
+        user.refresh_token = refreshToken;
+        await user.save();
+
+        // Set tokens as secure cookies
+        const cookieOptions = {
+            httpOnly: true,
+            secure: true,
+            sameSite: "None"
+        };
+
+        response.cookie('accessToken', accessToken, cookieOptions);
+        response.cookie('refreshToken', refreshToken, cookieOptions);
+
+        // Optional: Log audit event
+        await AuditModel.create({
+            email: user.email,
+            action: "MFA_VERIFIED",
+            ip: request.ip || request.headers['x-forwarded-for'] || "unknown",
+            userAgent: request.headers['user-agent'] || "unknown",
+            timestamp: new Date()
+        });
+
+        return response.status(200).json({
+            message: "MFA verified and login successful",
+            error: false,
+            success: true,
+            data: { accessToken, refreshToken }
+        });
+
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || "Server error",
+            error: true,
+            success: false
+        });
+    }
+}
+
+async function logAudit({ email, action, ip, userAgent }) {
+    try {
+        await AuditModel.create({
+            email,
+            action,
+            ip,
+            userAgent,
+            timestamp: new Date()
+        });
+    } catch (err) {
+        console.error("Audit logging failed:", err.message);
+    }
+}
 
 export async function registerUserController(request, response) {
     try {
@@ -33,14 +146,28 @@ export async function registerUserController(request, response) {
         const salt = await bcryptjs.genSalt(10);
         const hashPassword = await bcryptjs.hash(password, salt);
 
-        const newUser = new UserModel({ name, email, password: hashPassword });
+        const newUser = new UserModel({
+            name,
+            email,
+            password: hashPassword,
+            password_last_changed: new Date()
+        });
+
         const save = await newUser.save();
+
+        //  Log Audit
+        await logAudit({
+            email,
+            action: 'REGISTER',
+            ip: request.ip || request.headers['x-forwarded-for'] || "unknown",
+            userAgent: request.headers['user-agent'] || "unknown"
+        });
 
         const VerifyEmailUrl = `${process.env.FRONTEND_URL}/verify-email?code=${save?._id}`;
 
         await sendEmail({
             sendTo: email,
-            subject: "Verify your email with TAJA",
+            subject: "Verify your email with Herbolic",
             html: verifyEmailTemplate({
                 name,
                 url: VerifyEmailUrl
@@ -92,6 +219,8 @@ export async function verifyEmailController(request, response) {
     }
 }
 
+
+
 export async function loginController(request, response) {
     try {
         const { email, password } = request.body;
@@ -105,6 +234,7 @@ export async function loginController(request, response) {
         }
 
         const user = await UserModel.findOne({ email });
+
         if (!user || user.status !== "Active") {
             return response.status(400).json({
                 message: user ? "Contact admin" : "User not registered",
@@ -113,8 +243,27 @@ export async function loginController(request, response) {
             });
         }
 
+        // Check if user is temporarily locked
+        if (user.lock_until && user.lock_until > new Date()) {
+            return response.status(403).json({
+                message: "Account is temporarily locked due to multiple failed login attempts. Try again after 10 minutes.",
+                error: true,
+                success: false
+            });
+        }
+
         const isValidPassword = await bcryptjs.compare(password, user.password);
+
         if (!isValidPassword) {
+            user.login_attempts = (user.login_attempts || 0) + 1;
+
+            if (user.login_attempts >= 3) {
+                user.lock_until = new Date(Date.now() + 10 * 60 * 1000); // lock for 10 mins
+                user.login_attempts = 0;
+            }
+
+            await user.save();
+
             return response.status(400).json({
                 message: "Invalid password",
                 error: true,
@@ -122,12 +271,58 @@ export async function loginController(request, response) {
             });
         }
 
+        // Password expiry check
+        const lastChanged = user.password_last_changed || user.createdAt;
+        const daysSinceChange = (Date.now() - new Date(lastChanged)) / (1000 * 60 * 60 * 24);
+
+        if (daysSinceChange > 90) {
+            return response.status(403).json({
+                message: "Your password has expired. Please reset it.",
+                error: true,
+                success: false
+            });
+        }
+
+        // Reset lock and login_attempts on success
+        user.login_attempts = 0;
+        user.lock_until = null;
+        user.last_login_date = new Date();
+
+        // 🛡️ MFA Flow
+        if (user.is_mfa_enabled) {
+            const otp = generatedOtp(); // 6-digit OTP
+            user.mfa_otp = otp;
+            user.mfa_otp_expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+            await user.save();
+
+            // Send OTP to email
+            await sendEmail({
+                sendTo: user.email,
+                subject: "Your MFA Login Code",
+                html: mfaOtpTemplate(otp)
+            });
+
+            return response.status(200).json({
+                message: "MFA OTP sent to your email",
+                mfaRequired: true,
+                error: false,
+                success: true
+            });
+        }
+
+        await user.save();
+
+        // Audit Log
+        await logAudit({
+            email,
+            action: 'LOGIN',
+            ip: request.ip || request.headers['x-forwarded-for'] || "unknown",
+            userAgent: request.headers['user-agent'] || "unknown"
+        });
+
+        // Generate access and refresh tokens
         const accessToken = await generatedAccessToken(user._id);
         const refreshToken = await genertedRefreshToken(user._id);
-
-        await UserModel.findByIdAndUpdate(user._id, {
-            last_login_date: new Date()
-        });
 
         const cookieOptions = {
             httpOnly: true,
@@ -153,6 +348,7 @@ export async function loginController(request, response) {
         });
     }
 }
+
 
 export async function logoutController(request, response) {
     try {
@@ -268,7 +464,7 @@ export async function forgotPasswordController(request, response) {
 
         await sendEmail({
             sendTo: email,
-            subject: "Forgot password from TAJA",
+            subject: "Forgot password from Herbolic",
             html: forgotPasswordTemplate({
                 name: user.name,
                 otp
@@ -332,6 +528,9 @@ export async function verifyForgotPasswordOtp(request, response) {
     }
 }
 
+
+
+
 export async function resetpassword(request, response) {
     try {
         const { email, newPassword, confirmPassword } = request.body;
@@ -345,10 +544,42 @@ export async function resetpassword(request, response) {
         }
 
         const user = await UserModel.findOne({ email });
+        if (!user) {
+            return response.status(404).json({
+                message: "User not found",
+                error: true,
+                success: false
+            });
+        }
+
+        //  Prevent reuse of most recent password
+        const recentHash = user.password_history?.[0];
+        if (recentHash && await bcryptjs.compare(newPassword, recentHash)) {
+            return response.status(400).json({
+                message: "You cannot reuse your most recent password.",
+                error: true,
+                success: false
+            });
+        }
+
         const salt = await bcryptjs.genSalt(10);
         const hashedPassword = await bcryptjs.hash(newPassword, salt);
 
-        await UserModel.findByIdAndUpdate(user._id, { password: hashedPassword });
+        //  Update password history
+        const newHistory = [hashedPassword, ...(user.password_history || [])].slice(0, 3);
+
+        user.password = hashedPassword;
+        user.password_history = newHistory;
+        user.password_last_changed = new Date();
+        await user.save();
+
+        // Audit Log
+        await logAudit({
+            email,
+            action: 'PASSWORD_RESET',
+            ip: request.ip || request.headers['x-forwarded-for'] || "unknown",
+            userAgent: request.headers['user-agent'] || "unknown"
+        });
 
         return response.json({
             message: "Password reset successful",
@@ -364,6 +595,8 @@ export async function resetpassword(request, response) {
         });
     }
 }
+
+
 
 export async function refreshToken(request, response) {
     try {

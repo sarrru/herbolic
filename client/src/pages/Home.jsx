@@ -5,7 +5,6 @@ import { valideURLConvert } from '../utils/valideURLConvert';
 import CategoryWiseProductDisplay from '../components/CategoryWiseProductDisplay';
 import { FaChevronUp } from 'react-icons/fa';
 
-// Carousel arrow icons
 const ChevronLeft = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
     <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -18,26 +17,18 @@ const ChevronRight = () => (
   </svg>
 );
 
-// Scroll to Top Button
 const ScrollToTopButton = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const toggleVisibility = () => {
-      setIsVisible(window.scrollY > 200);
-    };
-
+    const toggleVisibility = () => setIsVisible(window.scrollY > 200);
     window.addEventListener('scroll', toggleVisibility);
     return () => window.removeEventListener('scroll', toggleVisibility);
   }, []);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   return (
     <button
-      onClick={scrollToTop}
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       className={`fixed bottom-6 right-6 z-50 transition-opacity duration-300 ${
         isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
       } bg-gray-800 bg-opacity-60 text-white p-3 rounded-full shadow-md hover:bg-opacity-80`}
@@ -48,11 +39,9 @@ const ScrollToTopButton = () => {
   );
 };
 
-// Beautiful Natural Health & Wellness Carousel Component
 const OrganicCarousel = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  const navigate = useNavigate();
 
   const slides = [
     {
@@ -95,14 +84,11 @@ const OrganicCarousel = () => {
     return () => clearInterval(interval);
   }, [isAutoPlaying, currentSlide]);
 
-  const handleMouseEnter = () => setIsAutoPlaying(false);
-  const handleMouseLeave = () => setIsAutoPlaying(true);
-
   return (
     <div 
       className="relative w-full h-[400px] overflow-hidden bg-gray-900 shadow-lg"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={() => setIsAutoPlaying(false)}
+      onMouseLeave={() => setIsAutoPlaying(true)}
     >
       {slides.map((slide, index) => (
         <div
@@ -116,7 +102,6 @@ const OrganicCarousel = () => {
           }`}
         >
           <div className="flex h-full">
-            {/* Left Content Section */}
             <div className="w-1/2 bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center p-12">
               <div className="text-center max-w-md">
                 <div className="mb-4">
@@ -132,14 +117,10 @@ const OrganicCarousel = () => {
                 </p>
               </div>
             </div>
-            
-            {/* Right Image Section */}
             <div className="w-1/2 relative">
               <div 
                 className="absolute inset-0 bg-cover bg-center"
-                style={{
-                  backgroundImage: `url(${slide.image})`,
-                }}
+                style={{ backgroundImage: `url(${slide.image})` }}
               />
               <div className="absolute inset-0 bg-gradient-to-l from-transparent via-gray-900/10 to-gray-900/30"></div>
             </div>
@@ -147,7 +128,6 @@ const OrganicCarousel = () => {
         </div>
       ))}
 
-      {/* Modern Navigation Arrows */}
       <button 
         onClick={prevSlide} 
         className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-gray-800 p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl border border-gray-200"
@@ -162,7 +142,7 @@ const OrganicCarousel = () => {
         <ChevronRight />
       </button>
 
-      {/* Elegant Slide Indicators */}
+      {/* Updated Carousel Dots */}
       <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex space-x-3">
         {slides.map((_, index) => (
           <button
@@ -170,7 +150,7 @@ const OrganicCarousel = () => {
             onClick={() => goToSlide(index)}
             className={`transition-all duration-300 rounded-full ${
               index === currentSlide 
-                ? 'w-8 h-2 bg-green-600 shadow-lg' 
+                ? 'w-6 h-2 bg-white shadow-md scale-110' 
                 : 'w-2 h-2 bg-white/60 hover:bg-white/80 hover:scale-125'
             }`}
           />
@@ -180,7 +160,6 @@ const OrganicCarousel = () => {
   );
 };
 
-// Enhanced Home Component
 const Home = () => {
   const loadingCategory = useSelector(state => state.product.loadingCategory);
   const categoryData = useSelector(state => state.product.allCategory);
@@ -188,10 +167,7 @@ const Home = () => {
   const navigate = useNavigate();
 
   const handleRedirectProductListpage = (id, cat) => {
-    const subcategory = subCategoryData.find(sub => {
-      return sub.category.some(c => c._id === id);
-    });
-
+    const subcategory = subCategoryData.find(sub => sub.category.some(c => c._id === id));
     if (!subcategory) return;
 
     const url = `/${valideURLConvert(cat)}-${id}/${valideURLConvert(subcategory.name)}-${subcategory._id}`;
@@ -200,36 +176,25 @@ const Home = () => {
 
   return (
     <div className='bg-white'>
-      {/* ✨ Beautiful Full Width Carousel */}
+      {/* ✨ Full Width Carousel with No Padding */}
       <div className='w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]'>
-        <div className='w-full px-4 py-6'>
-          <OrganicCarousel />
-        </div>
+        <OrganicCarousel />
       </div>
 
       {/* ✅ Categories Section Heading */}
       <div className='container mx-auto px-4 mt-10 mb-6'>
         <div className="text-center mb-6">
-          <span className="inline-block bg-green-100 text-green-800 text-sm font-bold tracking-wide px-6 py-2 rounded-full mb-6 shadow-sm">
+          <span className="inline-block bg-green-100 text-green-800 text-lg md:text-xl font-bold tracking-wide px-8 py-3 rounded-full mb-6 shadow-sm">
             Explore Our Collection
           </span>
         </div>
-        <h2 className='text-4xl md:text-5xl font-black text-center text-green-700 mb-4 tracking-tight'>
-          Shop by Category
-        </h2>
-        <p className="text-center text-gray-600 max-w-3xl mx-auto text-lg font-medium leading-relaxed">
-          Discover our carefully curated selection of natural health and wellness products, each category offering the finest quality for your healthy lifestyle.
-        </p>
       </div>
 
-      {/* 🟢 Enhanced Category Thumbnails */}
+      {/* 🟢 Category Icons */}
       <div className='container mx-auto px-4 my-8 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-2 gap-y-10'>
         {loadingCategory ? (
           new Array(12).fill(null).map((_, index) => (
-            <div
-              key={index + 'loadingcategory'}
-              className='bg-white rounded p-4 min-h-36 grid gap-2 shadow animate-pulse'
-            >
+            <div key={index + 'loading'} className='bg-white rounded p-4 min-h-36 grid gap-2 shadow animate-pulse'>
               <div className='bg-blue-100 min-h-24 rounded'></div>
               <div className='bg-blue-100 h-8 rounded'></div>
             </div>
@@ -237,16 +202,12 @@ const Home = () => {
         ) : (
           categoryData.map((cat) => (
             <div
-              key={cat._id + 'displayCategory'}
+              key={cat._id}
               className='cursor-pointer flex flex-col items-center space-y-2 group'
               onClick={() => handleRedirectProductListpage(cat._id, cat.name)}
             >
               <div className='bg-gray-100 rounded-full w-32 h-32 flex items-center justify-center shadow-md hover:shadow-lg transition'>
-                <img
-                  src={cat.image}
-                  alt={cat.name}
-                  className='w-20 h-20 object-contain'
-                />
+                <img src={cat.image} alt={cat.name} className='w-20 h-20 object-contain' />
               </div>
               <p className='text-center text-base font-medium text-gray-800 group-hover:text-green-600 transition'>
                 {cat.name}
@@ -256,18 +217,13 @@ const Home = () => {
         )}
       </div>
 
-      {/* 🟢 Category-Wise Product Display */}
+      {/* 🟢 Product Display by Category */}
       <div className="pb-8">
         {categoryData?.map((c) => (
-          <CategoryWiseProductDisplay
-            key={c?._id + 'CategorywiseProduct'}
-            id={c?._id}
-            name={c?.name}
-          />
+          <CategoryWiseProductDisplay key={c?._id} id={c?._id} name={c?.name} />
         ))}
       </div>
 
-      {/* ✨ Scroll-to-top button */}
       <ScrollToTopButton />
     </div>
   );

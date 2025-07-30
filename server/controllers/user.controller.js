@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 import AuditModel from '../models/audit.model.js';
 import mfaOtpTemplate from '../utils/mfaOtpTemplate.js';
 
+
 export async function verifyMfaController(request, response) {
     try {
         const { email, otp } = request.body;
@@ -124,8 +125,31 @@ async function logAudit({ email, action, ip, userAgent }) {
 
 export async function registerUserController(request, response) {
     try {
-        const { name, email, password } = request.body;
+        const { name, email, password, captchaToken } = request.body;
 
+        // ✅ CAPTCHA token check
+        if (!captchaToken) {
+            return response.status(400).json({
+                message: "Captcha is required",
+                error: true,
+                success: false
+            });
+        }
+
+        // ✅ CAPTCHA validation with Google API
+        const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET}&response=${captchaToken}`;
+        const captchaResponse = await fetch(verifyUrl, { method: "POST" });
+        const captchaResult = await captchaResponse.json();
+
+        if (!captchaResult.success) {
+            return response.status(400).json({
+                message: "Captcha verification failed",
+                error: true,
+                success: false
+            });
+        }
+
+        //  Proceed with registration
         if (!name || !email || !password) {
             return response.status(400).json({
                 message: "Provide email, name, and password",
@@ -155,7 +179,7 @@ export async function registerUserController(request, response) {
 
         const save = await newUser.save();
 
-        //  Log Audit
+        // Log Audit
         await logAudit({
             email,
             action: 'REGISTER',
@@ -189,7 +213,6 @@ export async function registerUserController(request, response) {
         });
     }
 }
-
 export async function verifyEmailController(request, response) {
     try {
         const { code } = request.body;
@@ -246,7 +269,7 @@ export async function loginController(request, response) {
         // Check if user is temporarily locked
         if (user.lock_until && user.lock_until > new Date()) {
             return response.status(403).json({
-                message: "Account is temporarily locked due to multiple failed login attempts. Try again after 10 minutes.",
+                message: "Account is temporarily locked due to multiple failed login attempts. Try again after ten minutes.",
                 error: true,
                 success: false
             });
@@ -288,14 +311,38 @@ export async function loginController(request, response) {
         user.lock_until = null;
         user.last_login_date = new Date();
 
-        // 🛡️ MFA Flow
-        if (user.is_mfa_enabled) {
+        //         //  MFA Flow
+        // if (user.is_mfa_enabled) {
+        //     const otp = generatedOtp(); // 6-digit OTP
+        //     user.mfa_otp = otp;
+        //     user.mfa_otp_expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+        //     await user.save();
+
+        //     // Send OTP to email
+        //     await sendEmail({
+        //         sendTo: user.email,
+        //         subject: "Your MFA Login Code",
+        //         html: mfaOtpTemplate(otp)
+        //     });
+
+        //     return response.status(200).json({
+        //         message: "MFA OTP sent to your email",
+        //         mfaRequired: true,
+        //         error: false,
+        //         success: true
+        //     });
+        // }
+
+
+
+
+        // 🛡️ MFA Flow – Skip for ADMIN
+        if (user.is_mfa_enabled && user.role !== 'ADMIN') {
             const otp = generatedOtp(); // 6-digit OTP
             user.mfa_otp = otp;
             user.mfa_otp_expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
             await user.save();
 
-            // Send OTP to email
             await sendEmail({
                 sendTo: user.email,
                 subject: "Your MFA Login Code",

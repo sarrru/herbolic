@@ -125,7 +125,8 @@ const CardProduct = ({ data }) => {
         </div>
         <div>
           {data.stock === 0 ? (
-            <p className='text-red-500 text-sm text-center'>Out of stock</p>
+            <p className="text-red-600 text-base font-bold">Out of stock</p>
+
           ) : (
             <AddToCartButton data={data} />
           )}
